@@ -1,24 +1,26 @@
 package fx_component
 
 import (
-	"fmt"
 	"io"
 	"net/http"
-	"os"
+
+	"go.uber.org/zap"
 )
 
 // EchoHandler is an http.Handler that copies its request body
 // back to the response.
-type EchoHandler struct{}
+type EchoHandler struct {
+	log *zap.Logger
+}
 
 // NewEchoHandler builds a new EchoHandler.
-func NewEchoHandler() *EchoHandler {
-	return &EchoHandler{}
+func NewEchoHandler(log *zap.Logger) *EchoHandler {
+	return &EchoHandler{log: log}
 }
 
 // ServeHTTP handles an HTTP request to the /echo endpoint.
-func (*EchoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *EchoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, r.Body); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to handle request:", err)
+		h.log.Warn("Failed to handle request", zap.Error(err))
 	}
 }
