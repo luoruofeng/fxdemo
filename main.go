@@ -10,7 +10,11 @@ import (
 
 func main() {
 	fx.New(
-		fx.Provide(component.NewHTTPServer),
+		fx.Provide(
+			component.NewHTTPServer,
+			component.NewEchoHandler,
+			component.NewServeMux,
+		),
 		fx.Invoke(func(*http.Server) {}),
 	).Run()
 }
