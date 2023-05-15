@@ -21,8 +21,17 @@ func main() {
 			fx.Annotate(
 				component.NewEchoHandler,
 				fx.As(new(component.Route)),
+				fx.ResultTags(`name:"echo"`),
 			),
-			component.NewServeMux,
+			fx.Annotate(
+				component.NewHelloHandler,
+				fx.As(new(component.Route)),
+				fx.ResultTags(`name:"hello"`),
+			),
+			fx.Annotate(
+				component.NewServeMux,
+				fx.ParamTags(`name:"echo"`, `name:"hello"`),
+			),
 			// zap.NewExample,
 			//使用自定义对的logger
 			component.NewLogger,
