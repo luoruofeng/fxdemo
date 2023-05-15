@@ -1,106 +1,103 @@
-# Register a handler
+# Register many handlers
 
-We built a server that can receive requests,
-but it doesn't yet know how to handle them.
-Let's fix that.
+We added two handlers in the previous section,
+but we reference them both explicitly by name when we build `NewServeMux`.
+This will quickly become inconvenient if we add more handlers.
 
-1. Define a basic HTTP handler that copies the incoming request body
-   to the response.
-   Add the following to the bottom of your file.
+It's preferable if `NewServeMux` doesn't know how many handlers or their names,
+and instead just accepts a list of handlers to register.
 
-   ```go mdox-exec='region ex/get-started/03-echo-handler/main.go echo-handler'
-   // EchoHandler is an http.Handler that copies its request body
-   // back to the response.
-   type EchoHandler struct{}
+Let's do that.
 
-   // NewEchoHandler builds a new EchoHandler.
-   func NewEchoHandler() *EchoHandler {
-     return &EchoHandler{}
-   }
+1. Modify `NewServeMux` to operate on a list of `Route` objects.
 
-   // ServeHTTP handles an HTTP request to the /echo endpoint.
-   func (*EchoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-     if _, err := io.Copy(w, r.Body); err != nil {
-       fmt.Fprintln(os.Stderr, "Failed to handle request:", err)
-     }
-   }
-   ```
-
-   Provide this to the application.
-
-   ```go mdox-exec='region ex/get-started/03-echo-handler/main.go provide-handler'
-       fx.Provide(
-         NewHTTPServer,
-         NewEchoHandler,
-       ),
-       fx.Invoke(func(*http.Server) {}),
-   ```
-
-2. Next, write a function that builds an `*http.ServeMux`.
-   The `*http.ServeMux` will route requests received by the server to different
-   handlers.
-   To begin with, it will route requests sent to `/echo` to `*EchoHandler`,
-   so its constructor should accept `*EchoHandler` as an argument.
-
-   ```go mdox-exec='region ex/get-started/03-echo-handler/main.go serve-mux'
-   // NewServeMux builds a ServeMux that will route requests
-   // to the given EchoHandler.
-   func NewServeMux(echo *EchoHandler) *http.ServeMux {
+   ```go mdox-exec='region ex/get-started/07-many-handlers/main.go mux'
+   func NewServeMux(routes []Route) *http.ServeMux {
      mux := http.NewServeMux()
-     mux.Handle("/echo", echo)
+     for _, route := range routes {
+       mux.Handle(route.Pattern(), route)
+     }
      return mux
    }
    ```
 
-   Likewise, provide this to the application.
+2. Annotate the `NewServeMux` entry in `main` to say
+   that it accepts a slice that contains the contents of the "routes" group.
 
-   ```go mdox-exec='region ex/get-started/03-echo-handler/main.go provides'
+   ```go mdox-exec='region ex/get-started/07-many-handlers/main.go mux-provide'
        fx.Provide(
          NewHTTPServer,
-         NewServeMux,
-         NewEchoHandler,
+         fx.Annotate(
+           NewServeMux,
+           fx.ParamTags(`group:"routes"`),
+         ),
+   ```
+
+3. Define a new function `AsRoute` to build functions that feed into this
+   group.
+
+   ```go mdox-exec='region ex/get-started/07-many-handlers/main.go AsRoute'
+   // AsRoute annotates the given constructor to state that
+   // it provides a route to the "routes" group.
+   func AsRoute(f any) any {
+     return fx.Annotate(
+       f,
+       fx.As(new(Route)),
+       fx.ResultTags(`group:"routes"`),
+     )
+   }
+   ```
+
+4. Wrap the `NewEchoHandler` and `NewHelloHandler` constructors in `main()`
+   with `AsRoute` so that they feed their routes into this group.
+
+   ```go mdox-exec='region ex/get-started/07-many-handlers/main.go route-provides'
+       fx.Provide(
+         AsRoute(NewEchoHandler),
+         AsRoute(NewHelloHandler),
+         zap.NewExample,
        ),
    ```
 
-   Note that `NewServeMux` was added above `NewEchoHandler`--the order
-   in which constructors are given to `fx.Provide` does not matter.
-
-3. Lastly, modify the `NewHTTPServer` function to connect
-   the server to this `*ServeMux`.
-
-   ```go mdox-exec='region ex/get-started/03-echo-handler/main.go connect-mux'
-   func NewHTTPServer(lc fx.Lifecycle, mux *http.ServeMux) *http.Server {
-     srv := &http.Server{Addr: ":8080", Handler: mux}
-     lc.Append(fx.Hook{
-   ```
-
-4. Run the server.
+5. Finally, run the application.
 
    ```
-   [Fx] PROVIDE    *http.Server <= main.NewHTTPServer()
-   [Fx] PROVIDE    *http.ServeMux <= main.NewServeMux()
-   [Fx] PROVIDE    *main.EchoHandler <= main.NewEchoHandler()
-   [Fx] PROVIDE    fx.Lifecycle <= go.uber.org/fx.New.func1()
-   [Fx] PROVIDE    fx.Shutdowner <= go.uber.org/fx.(*App).shutdowner-fm()
-   [Fx] PROVIDE    fx.DotGraph <= go.uber.org/fx.(*App).dotGraph-fm()
-   [Fx] INVOKE             main.main.func1()
-   [Fx] HOOK OnStart               main.NewHTTPServer.func1() executing (caller: main.NewHTTPServer)
-   Starting HTTP server at :8080
-   [Fx] HOOK OnStart               main.NewHTTPServer.func1() called by main.NewHTTPServer ran successfully in 7.459µs
-   [Fx] RUNNING
+   {"level":"info","msg":"provided","constructor":"main.NewHTTPServer()","type":"*http.Server"}
+   {"level":"info","msg":"provided","constructor":"fx.Annotate(main.NewServeMux(), fx.ParamTags([\"group:\\\"routes\\\"\"])","type":"*http.ServeMux"}
+   {"level":"info","msg":"provided","constructor":"fx.Annotate(main.NewEchoHandler(), fx.ResultTags([\"group:\\\"routes\\\"\"]), fx.As([[main.Route]])","type":"main.Route[group = \"routes\"]"}
+   {"level":"info","msg":"provided","constructor":"fx.Annotate(main.NewHelloHandler(), fx.ResultTags([\"group:\\\"routes\\\"\"]), fx.As([[main.Route]])","type":"main.Route[group = \"routes\"]"}
+   {"level":"info","msg":"provided","constructor":"go.uber.org/zap.NewExample()","type":"*zap.Logger"}
+   {"level":"info","msg":"provided","constructor":"go.uber.org/fx.New.func1()","type":"fx.Lifecycle"}
+   {"level":"info","msg":"provided","constructor":"go.uber.org/fx.(*App).shutdowner-fm()","type":"fx.Shutdowner"}
+   {"level":"info","msg":"provided","constructor":"go.uber.org/fx.(*App).dotGraph-fm()","type":"fx.DotGraph"}
+   {"level":"info","msg":"initialized custom fxevent.Logger","function":"main.main.func1()"}
+   {"level":"info","msg":"invoking","function":"main.main.func2()"}
+   {"level":"info","msg":"OnStart hook executing","callee":"main.NewHTTPServer.func1()","caller":"main.NewHTTPServer"}
+   {"level":"info","msg":"Starting HTTP server","addr":":8080"}
+   {"level":"info","msg":"OnStart hook executed","callee":"main.NewHTTPServer.func1()","caller":"main.NewHTTPServer","runtime":"5µs"}
+   {"level":"info","msg":"started"}
    ```
 
-5. Send a request to the server.
+6. Send requests to it.
 
-   ```shell
+   ```
    $ curl -X POST -d 'hello' http://localhost:8080/echo
    hello
+
+   $ curl -X POST -d 'gopher' http://localhost:8080/hello
+   Hello, gopher
    ```
 
 **What did we just do?**
 
-We added more components with `fx.Provide`.
-These components declared dependencies on each other
-by adding parameters to their constructors.
-Fx will resolve component dependencies by parameters and return values
-of the provided functions.
+We annotated `NewServeMux` to consume a *value group* as a slice,
+and we annotated our existing handler constructors to feed into this value
+group.
+Any other constructor in the application can also feed values
+into this value group as long as the result conforms to the `Route` interface.
+They will all be collected together and passed into our `ServeMux` constructor.
+
+**Related Resources**
+
+* [Value groups](/value-groups.md) further explains what value groups are,
+  and how to use them.
