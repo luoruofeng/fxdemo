@@ -18,7 +18,10 @@ func main() {
 		}),
 		fx.Provide(
 			component.NewHTTPServer,
-			component.NewEchoHandler,
+			fx.Annotate(
+				component.NewEchoHandler,
+				fx.As(new(component.Route)),
+			),
 			component.NewServeMux,
 			// zap.NewExample,
 			//使用自定义对的logger

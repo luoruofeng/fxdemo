@@ -13,6 +13,10 @@ type EchoHandler struct {
 	log *zap.Logger
 }
 
+func (*EchoHandler) Pattern() string {
+	return "/echo"
+}
+
 // NewEchoHandler builds a new EchoHandler.
 func NewEchoHandler(log *zap.Logger) *EchoHandler {
 	return &EchoHandler{log: log}
