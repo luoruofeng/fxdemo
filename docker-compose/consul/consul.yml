@@ -1,0 +1,51 @@
+version: '3'
+services:
+  consul-server-1:
+    image: consul:1.10.4
+    container_name: consul-server-1
+    command: "agent -server -ui -bootstrap-expect 3 -node=consul-server-1 -client=0.0.0.0 -log-level=INFO -datacenter=dc1"
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    networks:
+      - consul-network
+    volumes:
+      - ./data/consul-server-1:/consul/data
+      - ./logs/consul-server-1:/consul/logs
+    restart: always
+
+  consul-server-2:
+    image: consul:1.10.4
+    container_name: consul-server-2
+    command: "agent -server -node=consul-server-2 -join consul-server-1"
+    networks:
+      - consul-network
+    volumes:
+      - ./data/consul-server-2:/consul/data
+      - ./logs/consul-server-2:/consul/logs
+    restart: always
+
+  consul-server-3:
+    image: consul:1.10.4
+    container_name: consul-server-3
+    command: "agent -server -node=consul-server-3 -join consul-server-1"
+    networks:
+      - consul-network
+    volumes:
+      - ./data/consul-server-3:/consul/data
+      - ./logs/consul-server-3:/consul/logs
+    restart: always
+
+  consul-client:
+    image: consul:1.10.4
+    container_name: consul-client
+    command: "agent -client 0.0.0.0 -node=consul-client -bind=0.0.0.0 -join consul-server-1"
+    networks:
+      - consul-network
+    volumes:
+      - ./data/consul-client:/consul/data
+      - ./logs/consul-client:/consul/logs
+    restart: always
+
+networks:
+  consul-network:
