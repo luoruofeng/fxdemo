@@ -1,7 +1,10 @@
 package fx_opt
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"time"
 
 	fxp "github.com/luoruofeng/fxdemo/fx_opt/component/provide"
 	fxhttp "github.com/luoruofeng/fxdemo/fx_opt/component/provide/http"
@@ -14,7 +17,34 @@ import (
 	"go.uber.org/zap"
 )
 
-func GetApp() *fx.App {
+func NewFxSrv(configPath string) FxSrv {
+	return FxSrv{
+		configFilePath: configPath,
+	}
+}
+
+type FxSrv struct {
+	app            *fx.App
+	configFilePath string
+}
+
+func (f *FxSrv) Start() {
+	err := f.app.Start(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	<-f.app.Done()
+}
+
+func (f *FxSrv) Shutddown() {
+	stopCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := f.app.Stop(stopCtx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (f *FxSrv) Setup() {
 
 	//handlers Provide
 	handlerProv := fx.Provide(
@@ -31,8 +61,7 @@ func GetApp() *fx.App {
 	cnfProv := fx.Provide(
 		//config file path
 		func() string {
-			r := ""
-			return r
+			return f.configFilePath
 		},
 		configAnno,
 	)
@@ -67,5 +96,5 @@ func GetApp() *fx.App {
 		//Invoke
 		fx.Invoke(func(*mux.Router) {}, func(*http.Server) {}),
 	)
-	return app
+	f.app = app
 }

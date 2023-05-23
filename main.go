@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
-
+	"github.com/luoruofeng/fxdemo/cmd"
 	"github.com/luoruofeng/fxdemo/fx_opt"
 )
 
 func main() {
-	app := fx_opt.GetApp()
-	defer app.Stop(context.Background())
-	app.Run()
+	fxSrv := fx_opt.NewFxSrv(cmd.GetConfigFilePath())
+	fxSrv.Setup()
+	fxSrv.Start()
+	fxSrv.Shutddown()
 }
