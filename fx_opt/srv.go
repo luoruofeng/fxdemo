@@ -23,6 +23,10 @@ func NewFxSrv(configPath string) FxSrv {
 	}
 }
 
+func AddOtherProvide(constructors ...interface{}) fx.Option {
+	return fx.Provide(constructors...)
+}
+
 type FxSrv struct {
 	app            *fx.App
 	configFilePath string
@@ -57,13 +61,17 @@ func (f *FxSrv) Setup() {
 	)
 
 	//config Provide
-	configAnno := fx.Annotate(fxp.NewConfig)
 	cnfProv := fx.Provide(
-		//config file path
-		func() string {
-			return f.configFilePath
-		},
-		configAnno,
+		fx.Annotate(
+			func() string {
+				return f.configFilePath
+			},
+			fx.ResultTags(`name:"configPath"`),
+		),
+		fx.Annotate(
+			fxp.NewConfig,
+			fx.ParamTags(``, `name:"configPath"`),
+		),
 	)
 
 	//Http server Provide
@@ -92,9 +100,17 @@ func (f *FxSrv) Setup() {
 		loggerProv,
 		cnfProv,
 		httpSrvProv,
+		// 添加其他provide
+		AddOtherProvide(ConstructorFuncs...),
 
 		//Invoke
-		fx.Invoke(func(*mux.Router) {}, func(*http.Server) {}),
+		fx.Invoke(
+			func(*mux.Router) {},
+			func(*http.Server) {},
+		),
+		fx.Invoke( // 添加其他invoke
+			InvokeFuncs...,
+		),
 	)
 	f.app = app
 }
