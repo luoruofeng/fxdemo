@@ -1,7 +1,10 @@
 package fx_opt
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"time"
 
 	fxp "github.com/luoruofeng/fxdemo/fx_opt/component/provide"
 	fxhttp "github.com/luoruofeng/fxdemo/fx_opt/component/provide/http"
@@ -14,7 +17,38 @@ import (
 	"go.uber.org/zap"
 )
 
-func GetApp() *fx.App {
+func NewFxSrv(configPath string) FxSrv {
+	return FxSrv{
+		configFilePath: configPath,
+	}
+}
+
+func AddOtherProvide(constructors ...interface{}) fx.Option {
+	return fx.Provide(constructors...)
+}
+
+type FxSrv struct {
+	app            *fx.App
+	configFilePath string
+}
+
+func (f *FxSrv) Start() {
+	err := f.app.Start(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	<-f.app.Done()
+}
+
+func (f *FxSrv) Shutddown() {
+	stopCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := f.app.Stop(stopCtx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (f *FxSrv) Setup() {
 
 	//handlers Provide
 	handlerProv := fx.Provide(
@@ -27,14 +61,17 @@ func GetApp() *fx.App {
 	)
 
 	//config Provide
-	configAnno := fx.Annotate(fxp.NewConfig)
 	cnfProv := fx.Provide(
-		//config file path
-		func() string {
-			r := ""
-			return r
-		},
-		configAnno,
+		fx.Annotate(
+			func() string {
+				return f.configFilePath
+			},
+			fx.ResultTags(`name:"configPath"`),
+		),
+		fx.Annotate(
+			fxp.NewConfig,
+			fx.ParamTags(``, `name:"configPath"`),
+		),
 	)
 
 	//Http server Provide
@@ -63,9 +100,17 @@ func GetApp() *fx.App {
 		loggerProv,
 		cnfProv,
 		httpSrvProv,
+		// 添加其他provide
+		AddOtherProvide(ConstructorFuncs...),
 
 		//Invoke
-		fx.Invoke(func(*mux.Router) {}, func(*http.Server) {}),
+		fx.Invoke(
+			func(*mux.Router) {},
+			func(*http.Server) {},
+		),
+		fx.Invoke( // 添加其他invoke
+			InvokeFuncs...,
+		),
 	)
-	return app
+	f.app = app
 }

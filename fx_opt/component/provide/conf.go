@@ -21,7 +21,7 @@ func getPath(configFile string) string {
 		// 获取执行程序所在的目录
 		dir := filepath.Dir(absPath)
 		// 拼接文件路径
-		configFile = filepath.Join(dir, "./conf.json")
+		configFile = filepath.Join(dir, "./conf/conf.json")
 		if _, err := os.Stat(configFile); os.IsNotExist(err) {
 			panic(fmt.Sprintf("文件 %s 不存在\n", configFile))
 		}
