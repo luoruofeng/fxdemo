@@ -26,5 +26,7 @@ func NewEchoHandler(log *zap.Logger) *EchoHandler {
 func (h *EchoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, r.Body); err != nil {
 		h.log.Warn("Failed to handle request", zap.Error(err))
+		w.Write([]byte("error"))
 	}
+	w.Write([]byte("echo"))
 }
