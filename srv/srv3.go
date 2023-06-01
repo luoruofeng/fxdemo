@@ -15,12 +15,11 @@ type Abc3 struct {
 func NewAbc3(lc fx.Lifecycle, logger *zap.Logger, abc2 Abc2) Abc3 {
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			logger.Info("HAHA Abc3 Start building!!!")
-
+			logger.Info("Abc3开始构建", zap.Any("abc2", abc2))
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			logger.Info("HAHA Abc3 begins destruction!!!")
+			logger.Info("Abc3开始销毁")
 			return nil
 		},
 	})

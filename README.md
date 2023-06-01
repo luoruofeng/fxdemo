@@ -1,7 +1,9 @@
 # FXDEMO
 
 该项目是[fx-tool](https://github.com/luoruofeng/fx-tool)项目的模版。  
-*fx-tool*是`快速搭建go项目`的`脚手架`。项目做到了`模块化，超轻量，少封装`。
+`fx-tool`是快速搭建go项目的`脚手架`。     
+所生产的项目`模块化，超轻量，少封装`。
+
 
 <br/>
 <br/>
@@ -41,11 +43,11 @@ curl -X POST -d 'gopher' http://localhost:8080/hello
 若想修改项目的相关参数，请修改`/conf/conf.json`文件后，再运行。
 ```json
 {
-    "log_level":"info", #日志级别
-    "log_file":"/tmp/log/da.log", #日志存储位置
-    "http_addr":"0.0.0.0:8080", #http服务器监听地址
-    "http_read_over_time":15, #http读取超时（秒）
-    "http_write_over_time":15 #http写入超时（秒）
+    "log_level":"日志级别", 
+    "log_file":"日志存储位置", 
+    "http_addr":"http服务器监听地址", 
+    "http_read_over_time":"http读取超时（秒）", 
+    "http_write_over_time":"http写入超时（秒）"
 }
 ```
 <br>
@@ -61,6 +63,14 @@ curl -X POST -d 'gopher' http://localhost:8080/hello
   `fx_opt/var.go`是注册fx实例配置的文件夹。  
 
 * *`强烈建议`阅读以下内容前，先花10分钟查看[fx基本教程](https://uber-go.github.io/fx/get-started/)*  
+
+* *我们的fx中将会包含以下实例，所以可以给任何一个注册到fx的实例的New函数传递这些实例作为参数。*
+```
+*http.Server
+*go.uber.org/zap.Logger
+*github.com/gorilla/mux.Router
+*github.com/luoruofeng/fxdemo/onf.Config
+```
 
 <br><br>
 
@@ -107,7 +117,7 @@ func (f *FxSrv) Setup() {
 	handlerProv := fx.Provide(
 		fxhttp.AllAsRoute(handler.NewEchoHandler, handler.NewHelloHandler)...,
 	)
-...
+//其他代码
 ```
 <br>
 
@@ -156,7 +166,7 @@ func (l *LogMiddleware2) Middleware(next http.Handler) http.Handler {
 2. 打开`fx_opt/srv.go`,在`Setup`方法的`middlewareProv`变量的`fxhttp.AllAsMiddleware`数中添加新的参数`middleware.NewLogMiddleware2`即可(*middleware.NewLogMiddleware2*是上面的代码创建的函数)。
 ```go
 func (f *FxSrv) Setup() {
-    ...
+    //其他代码
 	middlewareProv := fx.Provide(
 		fxhttp.AllAsMiddleware(middleware.NewLogMiddleware, middleware.NewLogMiddleware2)...,
 ```
@@ -211,8 +221,9 @@ func NewAbc(lc fx.Lifecycle, logger *zap.Logger) Abc {
 ```
 * *Abc*是该案例中的结构体，该结构体产生的实例最终会被包含到fx中。也可以被fx中的其他实例使用。
 * *NewAbc*函数的返回值Abc会创建到fx中。  
-其中参数是我们已经注册到了fx中的实例。  
-传递第一个参数*lc fx.Lifecycle*的原因是因为要用*OnStart*和*OnStop*，如果不需要再该实例创建和销毁时候调用者两个函数，第一个参数可以不用传递。第二个参数*logger \*zap.Logger*是为了log日志记录传递，不需要也可以不传递。
+其中参数是我们已经注册到了fx中的实例。当然我们也可以不同传递任何参数，如果你用不到这些参数。  
+传递第一个参数*lc fx.Lifecycle*的原因是因为要用*OnStart*和*OnStop*，如果不需要在该实例创建和销毁时候调用这两个函数，第一个参数可以不用传递。   
+第二个参数*logger \*zap.Logger*是为了log日志记录传递，不需要也可以不传递。  
 
 <br>
 
@@ -221,7 +232,12 @@ func NewAbc(lc fx.Lifecycle, logger *zap.Logger) Abc {
 var ConstructorFuncs = []interface{}{
 	srv.NewAbc,
 ```
-
+* 如果*NewAbc*函数使用了`lc fx.Lifecycle`，则需要在`fx_opt/var.go`的`InvokeFuncs`变量中添加`func(srv.Abc) {}`函数（该函数将注册到fx的invoke中）。如果没有使用`lc fx.Lifecycle`则不用添加。
+```go
+var InvokeFuncs = []interface{}{
+	func(srv.Abc) {}
+//其他代码
+```
 <br>
 
 3. 启动服务器然后终止服务器，查看服务器控制台如下输出表示成功。
@@ -230,6 +246,151 @@ var ConstructorFuncs = []interface{}{
 {"level":"info","message":"Abc开始构建"}
 ...
 {"level":"info","message":"Abc开始销毁"}
+...
+```
+
+
+<br>
+<br>
+
+### `添加新的实例到fx（结构体带不属于fx中实例的属性，New函数带不属于fx中实例的参数）`
+举例说明，若想在fx中创建实例只需以下两步。
+1. 在`srv/`文件夹中新建`srv2.go`，内容如下：  
+```go
+package srv
+
+import (
+	"context"
+
+	"go.uber.org/fx"
+	"go.uber.org/zap"
+)
+
+type Abc2 struct {
+	logger  *zap.Logger
+	Content string
+}
+
+func NewAbc2(lc fx.Lifecycle, logger *zap.Logger, content string) Abc2 {
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			logger.Info("Abc2开始构建", zap.String("content", content))
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			logger.Info("Abc2开始销毁")
+			return nil
+		},
+	})
+
+	return Abc2{logger: logger, Content: content}
+}
+```
+* 和上一个案例基本相同，唯一不同之处是*Abc2*结构体中包含了不来自于fx的参数*Content string*,它同样来源于*NewAbc2*函数的参数*content string*，而传递参数的不同之处在下一步中体现。
+
+<br>
+
+2. 打开`fx_opt/var.go`,在`ConstructorFuncs`变量中添加两个新的数据项`fx.Annotate`即可(*srv.NewAbc2*是上面的代码创建的函数)。
+```go
+var ConstructorFuncs = []interface{}{
+	//其他代码
+	fx.Annotate(
+		func() string {
+			return "这是Abc2的Content参数"
+		},
+		fx.ResultTags(`name:"abc2content"`),
+	),
+
+	fx.Annotate(
+		srv.NewAbc2,
+		fx.ParamTags(``, ``, `name:"abc2content"`),
+	),
+```
+* 上面第一个*fx.Annotate*声明将会作为*srv.NewAbc2*函数的*content string*参数，进行依赖注入。   
+* 上面第一个*fx.Annotate*中的*fx.ResultTags(\`name:"abc2content"\`)*会匹配第二个*fx.Annotate*对象的fx.ParamTags(\`\`, \`\`, \`name:"abc2content"\`)的第三项。
+* 第二个*fx.Annotate*中的参数\`\`, \`\`, \`name:"abc2content"\`按顺序匹配了*NewAbc2(lc fx.Lifecycle, logger *zap.Logger, content string)*的三个参数，第一项，第二项fx不需要*name*匹配，第三项则是第一个*fx.Annotate*实例的第一个参数的内容。
+
+<br>
+
+* 如果*NewAbc2*函数使用了`lc fx.Lifecycle`，则需要在`fx_opt/var.go`的`InvokeFuncs`变量中添加`func(srv.Abc2) {}`函数（该函数将注册到fx的invoke中）。如果没有使用`lc fx.Lifecycle`则不用添加。
+```go
+var InvokeFuncs = []interface{}{
+//其他代码
+	func(srv.Abc2) {}
+//其他代码
+```
+<br>
+
+3. 启动服务器然后终止服务器，查看服务器控制台如下输出表示成功。
+```
+...
+{"level":"info","message":"Abc2开始构建","content":"这是Abc2的Content参数"}
+...
+{"level":"info","message":"Abc2开始销毁"}
+...
+```
+
+<br>
+<br>
+
+### `添加新的实例到fx（结构体包含刚在fx中注册的实例作为属性，New函数将刚在fx中注册的实例作为参数）`
+举例说明，将上一个例子中的Abc2作为`NewAbc3`的参数,若想在fx中创建实例只需以下两步。
+1. 在`srv/`文件夹中新建`srv2.go`，内容如下：  
+```go
+package srv
+
+import (
+	"context"
+
+	"go.uber.org/fx"
+	"go.uber.org/zap"
+)
+
+type Abc3 struct {
+	logger  *zap.Logger
+	Abc2   Abc2
+}
+
+func NewAbc3(lc fx.Lifecycle, logger *zap.Logger, abc2 Abc2) Abc3 {
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			logger.Info("Abc3开始构建", zap.Any("abc2", abc2))
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			logger.Info("Abc3开始销毁")
+			return nil
+		},
+	})
+
+	return Abc3{logger: logger, Abc2: abc2}
+}
+```
+* 和上两个案例基本相同，唯一不同之处是*Abc3*结构体中包含了刚在fx中注册的"Abc2"实例,它同样来源于*NewAbc3*函数，而传递参数的不同之处在下一步中体现。
+
+<br>
+
+2. 打开`fx_opt/var.go`,在`ConstructorFuncs`变量中添加新的参数`srv.NewAbc3,`即可(*srv.NewAbc*是上面的代码创建的函数)。
+```go
+var ConstructorFuncs = []interface{}{
+	//其他代码
+	srv.NewAbc3,
+```
+* 如果*NewAbc3*函数使用了`lc fx.Lifecycle`，则需要在`fx_opt/var.go`的`InvokeFuncs`变量中添加`func(srv.Abc2) {}`函数（该函数将注册到fx的invoke中）。如果没有使用`lc fx.Lifecycle`则不用添加。
+```go
+var InvokeFuncs = []interface{}{
+//其他代码
+	func(srv.Abc3) {}
+//其他代码
+```
+<br>
+
+3. 启动服务器然后终止服务器，查看服务器控制台如下输出表示成功。
+```
+...
+{"level":"info","message":"Abc3开始构建","abc2":{"Content":"这是Abc2的Content参数"}}
+...
+{"level":"info","message":"Abc3开始销毁"}
 ...
 ```
 
@@ -247,7 +408,8 @@ HTTP服务使用了[gorilla/mux](github.com/gorilla/mux)
 
 ## 项目结构
 `用户需要关注的文件夹以 * 提示`
-```
+```shell
+├── component *存放集成到项目的三方模块*
 ├── conf
 │   ├── conf.json *配置文件*
 │   └── model.go 
