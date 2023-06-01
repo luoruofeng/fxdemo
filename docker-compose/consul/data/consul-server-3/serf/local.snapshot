@@ -14,3 +14,10 @@ alive: consul-server-2 172.23.0.4:8301
 clock: 4
 event-clock: 2
 alive: consul-server-3 172.23.0.3:8301
+alive: consul-server-3 172.23.0.4:8301
+alive: consul-client 172.23.0.2:8301
+alive: consul-server-1 172.23.0.5:8301
+alive: consul-server-2 172.23.0.3:8301
+clock: 5
+event-clock: 3
+event-clock: 4

@@ -2,11 +2,13 @@ package provide
 
 import (
 	"encoding/json"
+	"fmt"
 
+	"github.com/luoruofeng/fxdemo/conf"
 	"go.uber.org/zap"
 )
 
-func NewLogger() *zap.Logger {
+func NewLogger(c *conf.Config) *zap.Logger {
 	// For some users, the presets offered by the NewProduction, NewDevelopment,
 	// and NewExample constructors won't be appropriate. For most of those
 	// users, the bundled Config struct offers the right balance of flexibility
@@ -15,17 +17,19 @@ func NewLogger() *zap.Logger {
 	//
 	// See the documentation for Config and zapcore.EncoderConfig for all the
 	// available options.
-	rawJSON := []byte(`{
-		"level": "debug",
+
+	format := `{
+		"level": "%s",
 		"encoding": "json",
-		"outputPaths": ["stdout", "./logs"],
+		"outputPaths": ["stdout", "%s"],
 		"errorOutputPaths": ["stderr"],
 		"encoderConfig": {
 		  "messageKey": "message",
 		  "levelKey": "level",
 		  "levelEncoder": "lowercase"
 		}
-	  }`)
+	  }`
+	rawJSON := []byte(fmt.Sprintf(format, c.LogLevel, c.LogFile))
 
 	var cfg zap.Config
 	if err := json.Unmarshal(rawJSON, &cfg); err != nil {

@@ -14,3 +14,9 @@ clock: 6
 alive: consul-server-3.dc1 172.23.0.3:8302
 alive: consul-server-2.dc1 172.23.0.4:8302
 alive: consul-server-1.dc1 172.23.0.5:8302
+alive: consul-server-3.dc1 172.23.0.4:8302
+alive: consul-server-1.dc1 172.23.0.5:8302
+alive: consul-server-2.dc1 172.23.0.4:8302
+clock: 8
+not-alive: consul-server-2.dc1
+alive: consul-server-2.dc1 172.23.0.3:8302
