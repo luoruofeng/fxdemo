@@ -435,6 +435,7 @@ HTTP服务使用了[gorilla/mux](github.com/gorilla/mux)
 │   │       │   ├── http_route.go
 │   │       │   └── http_server.go
 │   │       └── logger.go
+│   │       └── context.go
 │   ├── srv.go fx服务
 │   └── var.go fx变量
 ├── LICENSE 项目开源声明
@@ -449,7 +450,7 @@ HTTP服务使用了[gorilla/mux](github.com/gorilla/mux)
 
 <br>
 
-## basic分支提供的功能
+## master分支提供的功能
 * **HTTP Server Router** gorilla/muxl路由支持,可自定义middleware。
 * **Logger** UBER/zap日志系统。
 * **Flag** go原生的flag支持。
@@ -471,6 +472,6 @@ make build-windows
 ## 分支说明
 项目中的`init_project`, `http_server`, `register_handler`, `many_handlers`, `logger`, `decouple_registration`, `many_handlers分支`为Fx的教学示例。    
 
-`basic分支`最fx-tool脚手架所搭建的基础版本项目。   
+`master分支`最fx-tool脚手架所搭建的基础版本项目。   
 
 Fx的基础使用方法还可以参考官网docs(https://uber-go.github.io/fx/get-started/)。

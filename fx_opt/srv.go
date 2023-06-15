@@ -88,6 +88,9 @@ func (f *FxSrv) Setup() {
 	//logger Provide
 	loggerProv := fx.Provide(fxp.NewLogger)
 
+	//context Provide
+	contextProv := fx.Provide(fxp.NewContext)
+
 	app := fx.New(
 		// The same Zap logger for Fx's own logs as well.
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
@@ -99,6 +102,7 @@ func (f *FxSrv) Setup() {
 		middlewareProv,
 		loggerProv,
 		cnfProv,
+		contextProv,
 		httpSrvProv,
 		// 添加其他provide
 		AddOtherProvide(ConstructorFuncs...),
