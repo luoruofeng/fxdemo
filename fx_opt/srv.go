@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/luoruofeng/fxdemo/cmd"
 	fxp "github.com/luoruofeng/fxdemo/fx_opt/component/provide"
 	fxhttp "github.com/luoruofeng/fxdemo/fx_opt/component/provide/http"
 	"github.com/luoruofeng/fxdemo/http/handler"
@@ -17,9 +18,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewFxSrv(configPath string) FxSrv {
+func NewFxSrv(configPaths map[string]string) FxSrv {
 	return FxSrv{
-		configFilePath: configPath,
+		configFilePathMap: configPaths,
 	}
 }
 
@@ -28,8 +29,8 @@ func AddOtherProvide(constructors ...interface{}) fx.Option {
 }
 
 type FxSrv struct {
-	app            *fx.App
-	configFilePath string
+	app               *fx.App
+	configFilePathMap map[string]string
 }
 
 func (f *FxSrv) Start() {
@@ -50,6 +51,11 @@ func (f *FxSrv) Shutddown() {
 
 func (f *FxSrv) Setup() {
 
+	//flag Provide
+	flagProv := fx.Provide(
+		//如果某个component中的模块需要使用：启动命令行时设置的配置文件路径，可以传入该参数configPathMap map[string]string
+		cmd.NewConfigPathMap,
+	)
 	//handlers Provide
 	handlerProv := fx.Provide(
 		fxhttp.AllAsRoute(handler.NewEchoHandler, handler.NewHelloHandler)...,
@@ -64,7 +70,7 @@ func (f *FxSrv) Setup() {
 	cnfProv := fx.Provide(
 		fx.Annotate(
 			func() string {
-				return f.configFilePath
+				return f.configFilePathMap["cnf"]
 			},
 			fx.ResultTags(`name:"configPath"`),
 		),
@@ -98,6 +104,7 @@ func (f *FxSrv) Setup() {
 		}),
 
 		//Provides
+		flagProv,
 		handlerProv,
 		middlewareProv,
 		loggerProv,

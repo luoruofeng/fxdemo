@@ -441,7 +441,7 @@ HTTP服务使用了[gorilla/mux](github.com/gorilla/mux)
 ├── LICENSE 项目开源声明
 ├── main.go 主函数
 ├── cmd 项目启动命令行
-│   └── config.go
+│   └── config.go *如果命令行启动项目需要新增参数，在该文件中添加*
 ├── Makefile 
 ├── README.md 
 ├── go.mod
